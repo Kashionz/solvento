@@ -9,8 +9,8 @@ import {
   simulateInstallment,
 } from '@cashpilot/rules'
 import {
-  type Account,
   accountInputSchema,
+  accountUpdateSchema,
   type Bill,
   billInputSchema,
   type Goal,
@@ -21,6 +21,7 @@ import {
   purchaseDecisionInputSchema,
   type RecurringRule,
   recurringRuleInputSchema,
+  registerSchema,
   type Transaction,
   transactionInputSchema,
   travelDecisionInputSchema,
@@ -33,9 +34,9 @@ import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import Fastify from 'fastify'
-import { z } from 'zod'
+import type { z } from 'zod'
 
-import { MemoryStore } from './store'
+import { DuplicateEmailError, MemoryStore } from './store'
 
 function parseBody<T>(schema: z.ZodType<T>, body: unknown) {
   const parsed = schema.safeParse(body)
@@ -93,31 +94,45 @@ export async function buildApp() {
     return user.id
   }
 
+  function setSessionCookie(reply: FastifyReply, token: string) {
+    reply.setCookie('cashpilot_session', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      path: '/',
+    })
+  }
+
   app.get('/health', async () => ({
     ok: true,
   }))
 
   app.post('/api/v1/auth/register', async (request, reply) => {
-    const body = parseBody(
-      z.object({
-        email: z.email(),
-        password: z.string().min(8),
-        displayName: z.string().min(1).default('CashPilot User'),
-      }),
-      request.body,
-    )
+    const body = parseBody(registerSchema, request.body)
     if (!body.ok) {
       return reply.code(400).send(body.error)
     }
 
-    const user = await store.register(body.data.email, body.data.password, body.data.displayName)
-    return reply.code(201).send({
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-      },
-    })
+    try {
+      const user = await store.register(body.data.email, body.data.password, body.data.displayName)
+      setSessionCookie(reply, store.createSession(user.id))
+
+      return reply.code(201).send({
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+        },
+      })
+    } catch (error) {
+      if (error instanceof DuplicateEmailError) {
+        return reply.code(409).send({
+          message: error.message,
+        })
+      }
+
+      throw error
+    }
   })
 
   app.post('/api/v1/auth/login', async (request, reply) => {
@@ -133,12 +148,7 @@ export async function buildApp() {
       })
     }
 
-    reply.setCookie('cashpilot_session', result.token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
-      path: '/',
-    })
+    setSessionCookie(reply, result.token)
 
     return {
       user: {
@@ -218,11 +228,12 @@ export async function buildApp() {
       return
     }
 
-    const account = store.updateAccount(
-      userId,
-      (request.params as { id: string }).id,
-      request.body as Partial<Account>,
-    )
+    const body = parseBody(accountUpdateSchema, request.body)
+    if (!body.ok) {
+      return reply.code(400).send(body.error)
+    }
+
+    const account = store.updateAccount(userId, (request.params as { id: string }).id, body.data)
     if (!account) {
       return reply.code(404).send({ message: 'Account not found' })
     }

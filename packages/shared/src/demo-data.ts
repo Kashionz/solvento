@@ -7,6 +7,18 @@ function now() {
 export const DEMO_EMAIL = 'demo@cashpilot.app'
 export const DEMO_PASSWORD = 'demo123456'
 
+const defaultCategorySeed: Array<[string, string, Category['group']]> = [
+  ['cat-salary', '薪資', 'income'],
+  ['cat-subsidy', '租屋補貼', 'income'],
+  ['cat-rent', '房租', 'housing'],
+  ['cat-subscription', '訂閱', 'subscription'],
+  ['cat-debt', '卡費與債務', 'debt'],
+  ['cat-daily', '生活支出', 'other'],
+  ['cat-invest', '投資', 'investment'],
+  ['cat-travel', '旅行', 'travel'],
+  ['cat-purchase', '大型購買', 'shopping'],
+]
+
 function createUser(): User {
   return {
     id: 'usr-demo',
@@ -17,21 +29,16 @@ function createUser(): User {
   }
 }
 
-function createCategories(userId: string): Category[] {
-  const categorySeed: Array<[string, string, Category['group']]> = [
-    ['cat-salary', '薪資', 'income'],
-    ['cat-subsidy', '租屋補貼', 'income'],
-    ['cat-rent', '房租', 'housing'],
-    ['cat-subscription', '訂閱', 'subscription'],
-    ['cat-debt', '卡費與債務', 'debt'],
-    ['cat-daily', '生活支出', 'other'],
-    ['cat-invest', '投資', 'investment'],
-    ['cat-travel', '旅行', 'travel'],
-    ['cat-purchase', '大型購買', 'shopping'],
-  ]
+export function createDefaultCategories(
+  userId: string,
+  options?: {
+    idPrefix?: string
+  },
+): Category[] {
+  const prefix = options?.idPrefix ? `${options.idPrefix}-` : ''
 
-  return categorySeed.map(([id, name, group]) => ({
-    id,
+  return defaultCategorySeed.map(([id, name, group]) => ({
+    id: `${prefix}${id}`,
     userId,
     name,
     group,
@@ -42,7 +49,7 @@ function createCategories(userId: string): Category[] {
 
 export function createDemoSnapshot(): AppSnapshot {
   const user = createUser()
-  const categories = createCategories(user.id)
+  const categories = createDefaultCategories(user.id)
 
   return {
     users: [user],

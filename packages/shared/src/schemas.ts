@@ -2,21 +2,35 @@ import { z } from 'zod'
 
 import { accountTypes, currencies, riskLevels, scenarios } from './domain'
 
-export const loginSchema = z.object({
-  email: z.email(),
-  password: z.string().min(8),
-})
+export const loginSchema = z
+  .object({
+    email: z.email(),
+    password: z.string().min(8),
+  })
+  .strict()
 
-export const accountInputSchema = z.object({
-  name: z.string().min(1),
-  type: z.enum(accountTypes),
-  currency: z.enum(currencies),
-  balanceMinor: z.number().int(),
-  creditLimitMinor: z.number().int().optional(),
-  billingDay: z.number().int().min(1).max(31).optional(),
-  dueDay: z.number().int().min(1).max(31).optional(),
-  isActive: z.boolean().default(true),
-})
+export const registerSchema = z
+  .object({
+    email: z.email(),
+    password: z.string().min(8),
+    displayName: z.string().min(1).default('CashPilot User'),
+  })
+  .strict()
+
+export const accountInputSchema = z
+  .object({
+    name: z.string().min(1),
+    type: z.enum(accountTypes),
+    currency: z.enum(currencies),
+    balanceMinor: z.number().int(),
+    creditLimitMinor: z.number().int().optional(),
+    billingDay: z.number().int().min(1).max(31).optional(),
+    dueDay: z.number().int().min(1).max(31).optional(),
+    isActive: z.boolean().default(true),
+  })
+  .strict()
+
+export const accountUpdateSchema = accountInputSchema.partial().strict()
 
 export const transactionInputSchema = z.object({
   accountId: z.string(),

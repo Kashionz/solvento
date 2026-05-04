@@ -78,6 +78,11 @@ export const authApi = {
       method: 'POST',
       bodyJson: { email, password },
     }),
+  register: (email: string, password: string, displayName: string) =>
+    apiRequest<{ user: AuthUser }>('/auth/register', {
+      method: 'POST',
+      bodyJson: { email, password, displayName },
+    }),
   logout: () =>
     apiRequest<{ ok: boolean }>('/auth/logout', {
       method: 'POST',
@@ -129,6 +134,23 @@ export const decisionApi = {
 
 export const accountApi = {
   list: () => apiRequest<Account[]>('/accounts'),
+  create: (payload: Omit<Account, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) =>
+    apiRequest<Account>('/accounts', {
+      method: 'POST',
+      bodyJson: payload,
+    }),
+  update: (
+    id: string,
+    payload: Partial<Omit<Account, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>,
+  ) =>
+    apiRequest<Account>(`/accounts/${id}`, {
+      method: 'PATCH',
+      bodyJson: payload,
+    }),
+  delete: (id: string) =>
+    apiRequest<void>(`/accounts/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 export const transactionApi = {

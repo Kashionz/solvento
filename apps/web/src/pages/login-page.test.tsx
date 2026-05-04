@@ -5,8 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../test/render-with-providers'
 import { LoginPage } from './login-page'
 
-const { loginMock, showMock } = vi.hoisted(() => ({
+const { loginMock, registerMock, showMock } = vi.hoisted(() => ({
   loginMock: vi.fn(),
+  registerMock: vi.fn(),
   showMock: vi.fn(),
 }))
 
@@ -18,6 +19,7 @@ vi.mock('../api', async () => {
     authApi: {
       ...actual.authApi,
       login: loginMock,
+      register: registerMock,
     },
   }
 })
@@ -31,12 +33,20 @@ vi.mock('@mantine/notifications', () => ({
 describe('LoginPage', () => {
   beforeEach(() => {
     loginMock.mockReset()
+    registerMock.mockReset()
     showMock.mockReset()
     loginMock.mockResolvedValue({
       user: {
         id: 'usr-demo',
         email: 'demo@cashpilot.app',
         displayName: 'CashPilot Demo',
+      },
+    })
+    registerMock.mockResolvedValue({
+      user: {
+        id: 'usr-new',
+        email: 'new@cashpilot.app',
+        displayName: 'New User',
       },
     })
   })
@@ -58,6 +68,30 @@ describe('LoginPage', () => {
       expect.objectContaining({
         color: 'green',
         message: '已登入 Demo 帳號',
+      }),
+    )
+  })
+
+  it('可切換到註冊模式並送出新帳號資料', async () => {
+    const user = userEvent.setup()
+
+    renderWithProviders(<LoginPage />)
+
+    await user.click(screen.getByRole('button', { name: '建立帳號' }))
+    await user.type(screen.getByLabelText('顯示名稱'), 'New User')
+    await user.clear(screen.getByLabelText('Email'))
+    await user.type(screen.getByLabelText('Email'), 'new@cashpilot.app')
+    await user.clear(screen.getByLabelText('Password'))
+    await user.type(screen.getByLabelText('Password'), 'week2pass123')
+    await user.click(screen.getByRole('button', { name: '送出註冊' }))
+
+    await waitFor(() => {
+      expect(registerMock).toHaveBeenCalledWith('new@cashpilot.app', 'week2pass123', 'New User')
+    })
+    expect(showMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        color: 'green',
+        message: '帳號已建立',
       }),
     )
   })

@@ -73,6 +73,7 @@ export async function buildApp() {
   })
   await app.register(cors, {
     origin: ['http://localhost:3000'],
+    credentials: true,
   })
   await app.register(helmet)
   await app.register(rateLimit, {

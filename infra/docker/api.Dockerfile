@@ -14,4 +14,4 @@ ENV PORT=3001
 
 EXPOSE 3001
 
-CMD ["node", "apps/api/dist/apps/api/src/server.js"]
+CMD ["pnpm", "--filter", "@cashpilot/api", "exec", "tsx", "src/server.ts"]

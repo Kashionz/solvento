@@ -30,6 +30,22 @@ describe('cashpilot api', () => {
     expect(response.statusCode).toBe(401)
   })
 
+  it('returns credential-friendly cors headers for auth preflight requests', async () => {
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/api/v1/auth/register',
+      headers: {
+        origin: 'http://localhost:3000',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    })
+
+    expect(response.statusCode).toBe(204)
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:3000')
+    expect(response.headers['access-control-allow-credentials']).toBe('true')
+  })
+
   it('logs in with the seeded demo user and returns a session cookie', async () => {
     const response = await app.inject({
       method: 'POST',

@@ -2,6 +2,32 @@
 
 :root {
   color-scheme: dark;
+  --cashpilot-body-base: #06080d;
+  --cashpilot-body-color: #f0f2ff;
+  --cashpilot-body-glow-primary: rgba(79, 110, 247, 0.18);
+  --cashpilot-body-glow-secondary: rgba(123, 92, 245, 0.12);
+  --cashpilot-shell-bg: rgba(11, 15, 24, 0.88);
+  --cashpilot-shell-border: rgba(255, 255, 255, 0.08);
+  --cashpilot-surface-bg: linear-gradient(180deg, rgba(28, 30, 40, 0.96), rgba(18, 21, 30, 0.94));
+  --cashpilot-surface-border: rgba(255, 255, 255, 0.08);
+  --cashpilot-surface-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  --cashpilot-notification-bg: rgba(255, 255, 255, 0.03);
+  --cashpilot-notification-border: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-mantine-color-scheme='light'] {
+  color-scheme: light;
+  --cashpilot-body-base: #f4f7fb;
+  --cashpilot-body-color: #1b1e27;
+  --cashpilot-body-glow-primary: rgba(79, 110, 247, 0.12);
+  --cashpilot-body-glow-secondary: rgba(62, 86, 208, 0.08);
+  --cashpilot-shell-bg: rgba(255, 255, 255, 0.82);
+  --cashpilot-shell-border: rgba(70, 88, 126, 0.14);
+  --cashpilot-surface-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.94));
+  --cashpilot-surface-border: rgba(70, 88, 126, 0.12);
+  --cashpilot-surface-shadow: 0 18px 50px rgba(70, 88, 126, 0.16);
+  --cashpilot-notification-bg: rgba(79, 110, 247, 0.06);
+  --cashpilot-notification-border: rgba(79, 110, 247, 0.14);
 }
 
 html,
@@ -13,23 +39,24 @@ body,
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(79, 110, 247, 0.18), transparent 32%),
-    radial-gradient(circle at bottom right, rgba(123, 92, 245, 0.12), transparent 28%), #06080d;
-  color: #f0f2ff;
+    radial-gradient(circle at top left, var(--cashpilot-body-glow-primary), transparent 32%),
+    radial-gradient(circle at bottom right, var(--cashpilot-body-glow-secondary), transparent 28%),
+    var(--cashpilot-body-base);
+  color: var(--cashpilot-body-color);
   font-family: "DM Sans", "Noto Sans TC", system-ui, sans-serif;
 }
 
 .cashpilot-header,
 .cashpilot-navbar {
-  background: rgba(11, 15, 24, 0.88);
+  background: var(--cashpilot-shell-bg);
   backdrop-filter: blur(16px);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--cashpilot-shell-border);
 }
 
 .cashpilot-surface {
-  background: linear-gradient(180deg, rgba(28, 30, 40, 0.96), rgba(18, 21, 30, 0.94));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  background: var(--cashpilot-surface-bg);
+  border: 1px solid var(--cashpilot-surface-border);
+  box-shadow: var(--cashpilot-surface-shadow);
 }
 
 .loading-screen,
@@ -43,6 +70,6 @@ body {
 .notification-row {
   padding: 12px 14px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--cashpilot-notification-bg);
+  border: 1px solid var(--cashpilot-notification-border);
 }

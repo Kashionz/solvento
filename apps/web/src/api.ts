@@ -155,10 +155,50 @@ export const accountApi = {
 
 export const transactionApi = {
   list: () => apiRequest<Transaction[]>('/transactions'),
+  create: (payload: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) =>
+    apiRequest<Transaction>('/transactions', {
+      method: 'POST',
+      bodyJson: payload,
+    }),
+  update: (
+    id: string,
+    payload: Partial<Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>,
+  ) =>
+    apiRequest<Transaction>(`/transactions/${id}`, {
+      method: 'PATCH',
+      bodyJson: payload,
+    }),
+  delete: (id: string) =>
+    apiRequest<void>(`/transactions/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 export const billApi = {
   list: () => apiRequest<Bill[]>('/bills'),
+  create: (payload: Omit<Bill, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) =>
+    apiRequest<Bill>('/bills', {
+      method: 'POST',
+      bodyJson: payload,
+    }),
+  update: (id: string, payload: Partial<Omit<Bill, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>) =>
+    apiRequest<Bill>(`/bills/${id}`, {
+      method: 'PATCH',
+      bodyJson: payload,
+    }),
+  delete: (id: string) =>
+    apiRequest<void>(`/bills/${id}`, {
+      method: 'DELETE',
+    }),
+  addPayment: (id: string, amountMinor: number) =>
+    apiRequest<Bill>(`/bills/${id}/payments`, {
+      method: 'POST',
+      bodyJson: { amountMinor },
+    }),
+  markPaid: (id: string) =>
+    apiRequest<Bill>(`/bills/${id}/mark-paid`, {
+      method: 'POST',
+    }),
 }
 
 export const goalApi = {
@@ -171,4 +211,18 @@ export const metadataApi = {
 
 export const recurringRuleApi = {
   list: () => apiRequest<RecurringRule[]>('/recurring-rules'),
+  create: (payload: Omit<RecurringRule, 'id' | 'userId'>) =>
+    apiRequest<RecurringRule>('/recurring-rules', {
+      method: 'POST',
+      bodyJson: payload,
+    }),
+  update: (id: string, payload: Partial<Omit<RecurringRule, 'id' | 'userId'>>) =>
+    apiRequest<RecurringRule>(`/recurring-rules/${id}`, {
+      method: 'PATCH',
+      bodyJson: payload,
+    }),
+  delete: (id: string) =>
+    apiRequest<void>(`/recurring-rules/${id}`, {
+      method: 'DELETE',
+    }),
 }

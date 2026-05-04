@@ -14,14 +14,12 @@ test('亮色模式會套用到頁面殼層樣式', async ({ page }) => {
 
   await themeSwitch.click()
 
-  await expect.poll(() => page.locator('html').getAttribute('data-mantine-color-scheme')).toBe(
-    'light',
-  )
+  await expect
+    .poll(() => page.locator('html').getAttribute('data-mantine-color-scheme'))
+    .toBe('light')
 
   await expect
-    .poll(() =>
-      page.evaluate(() => window.getComputedStyle(document.body).backgroundColor),
-    )
+    .poll(() => page.evaluate(() => window.getComputedStyle(document.body).backgroundColor))
     .toBe('rgb(244, 247, 251)')
 
   await expect

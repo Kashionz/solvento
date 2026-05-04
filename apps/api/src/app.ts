@@ -13,6 +13,7 @@ import {
   accountUpdateSchema,
   type Bill,
   billInputSchema,
+  billUpdateSchema,
   type Goal,
   goalInputSchema,
   installmentInputSchema,
@@ -21,9 +22,11 @@ import {
   purchaseDecisionInputSchema,
   type RecurringRule,
   recurringRuleInputSchema,
+  recurringRuleUpdateSchema,
   registerSchema,
   type Transaction,
   transactionInputSchema,
+  transactionUpdateSchema,
   travelDecisionInputSchema,
 } from '@cashpilot/shared'
 import cookie from '@fastify/cookie'
@@ -282,10 +285,15 @@ export async function buildApp() {
       return
     }
 
+    const body = parseBody(transactionUpdateSchema, request.body)
+    if (!body.ok) {
+      return reply.code(400).send(body.error)
+    }
+
     const transaction = store.updateTransaction(
       userId,
       (request.params as { id: string }).id,
-      request.body as Partial<Transaction>,
+      body.data as Partial<Transaction>,
     )
     if (!transaction) {
       return reply.code(404).send({ message: 'Transaction not found' })
@@ -334,10 +342,15 @@ export async function buildApp() {
       return
     }
 
+    const body = parseBody(recurringRuleUpdateSchema, request.body)
+    if (!body.ok) {
+      return reply.code(400).send(body.error)
+    }
+
     const rule = store.updateRecurringRule(
       userId,
       (request.params as { id: string }).id,
-      request.body as Partial<RecurringRule>,
+      body.data as Partial<RecurringRule>,
     )
     if (!rule) {
       return reply.code(404).send({ message: 'Recurring rule not found' })
@@ -400,15 +413,30 @@ export async function buildApp() {
       return
     }
 
+    const body = parseBody(billUpdateSchema, request.body)
+    if (!body.ok) {
+      return reply.code(400).send(body.error)
+    }
+
     const bill = store.updateBill(
       userId,
       (request.params as { id: string }).id,
-      request.body as Partial<Bill>,
+      body.data as Partial<Bill>,
     )
     if (!bill) {
       return reply.code(404).send({ message: 'Bill not found' })
     }
     return bill
+  })
+
+  app.delete('/api/v1/bills/:id', async (request, reply) => {
+    const userId = requireUserId(request, reply)
+    if (!userId) {
+      return
+    }
+
+    const deleted = store.deleteBill(userId, (request.params as { id: string }).id)
+    return reply.code(deleted ? 204 : 404).send(deleted ? undefined : { message: 'Bill not found' })
   })
 
   app.post('/api/v1/bills/:id/payments', async (request, reply) => {

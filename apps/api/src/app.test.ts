@@ -151,6 +151,38 @@ describe('cashpilot api', () => {
     )
   })
 
+  it('rejects transaction patches that include protected ownership fields', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/transactions/txn-salary-apr',
+      headers: {
+        cookie: sessionCookie,
+      },
+      payload: {
+        note: '不應更新',
+        userId: registeredUserId,
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+  })
+
+  it('rejects recurring rule patches that include protected ownership fields', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/recurring-rules/rule-salary',
+      headers: {
+        cookie: sessionCookie,
+      },
+      payload: {
+        name: '不應更新',
+        userId: registeredUserId,
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+  })
+
   it('hides other users accounts from delete operations', async () => {
     const response = await app.inject({
       method: 'DELETE',
@@ -214,5 +246,52 @@ describe('cashpilot api', () => {
     expect(
       billResponse.json().some((bill: { id: string }) => bill.id === 'bill-yushan-2026-05'),
     ).toBe(true)
+  })
+
+  it('allows partial bill payments to move status to partial', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/bills/bill-rent-2026-05/payments',
+      headers: {
+        cookie: sessionCookie,
+      },
+      payload: {
+        amountMinor: 500000,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        id: 'bill-rent-2026-05',
+        paidAmountMinor: 500000,
+        status: 'partial',
+      }),
+    )
+  })
+
+  it('allows users to delete their own bills', async () => {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/bills/bill-loan-2026-05',
+      headers: {
+        cookie: sessionCookie,
+      },
+    })
+
+    expect(response.statusCode).toBe(204)
+
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/bills',
+      headers: {
+        cookie: sessionCookie,
+      },
+    })
+
+    expect(listResponse.statusCode).toBe(200)
+    expect(
+      listResponse.json().some((bill: { id: string }) => bill.id === 'bill-loan-2026-05'),
+    ).toBe(false)
   })
 })

@@ -336,6 +336,15 @@ export class MemoryStore {
     return this.touchEntity(bill)
   }
 
+  deleteBill(userId: string, id: string) {
+    const index = this.snapshot.bills.findIndex((bill) => bill.userId === userId && bill.id === id)
+    if (index === -1) {
+      return false
+    }
+    this.snapshot.bills.splice(index, 1)
+    return true
+  }
+
   addBillPayment(userId: string, id: string, amountMinor: number) {
     const bill = this.getBill(userId, id)
     if (!bill) {

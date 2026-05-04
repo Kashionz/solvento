@@ -32,47 +32,60 @@ export const accountInputSchema = z
 
 export const accountUpdateSchema = accountInputSchema.partial().strict()
 
-export const transactionInputSchema = z.object({
-  accountId: z.string(),
-  date: z.string(),
-  amountMinor: z.number().int().positive(),
-  direction: z.enum(['income', 'expense', 'transfer_in', 'transfer_out']),
-  categoryId: z.string(),
-  note: z.string().optional(),
-  merchant: z.string().optional(),
-  relatedBillId: z.string().optional(),
-  isRecurring: z.boolean().default(false),
-})
+export const transactionInputSchema = z
+  .object({
+    accountId: z.string(),
+    date: z.string(),
+    amountMinor: z.number().int().positive(),
+    direction: z.enum(['income', 'expense', 'transfer_in', 'transfer_out']),
+    categoryId: z.string(),
+    note: z.string().optional(),
+    merchant: z.string().optional(),
+    relatedBillId: z.string().optional(),
+    relatedInstallmentPaymentId: z.string().optional(),
+    isRecurring: z.boolean().default(false),
+  })
+  .strict()
 
-export const billInputSchema = z.object({
-  accountId: z.string().optional(),
-  name: z.string().min(1),
-  billType: z.enum(['credit_card', 'rent', 'loan', 'utility', 'subscription', 'other']),
-  statementMonth: z.string().optional(),
-  totalAmountMinor: z.number().int().positive(),
-  paidAmountMinor: z.number().int().nonnegative().default(0),
-  dueDate: z.string(),
-  status: z.enum(['unpaid', 'partial', 'paid', 'installment']).default('unpaid'),
-  canInstallment: z.boolean().default(false),
-  nonInstallmentAmountMinor: z.number().int().nonnegative().optional(),
-  installmentEligibleAmountMinor: z.number().int().nonnegative().optional(),
-})
+export const transactionUpdateSchema = transactionInputSchema.partial().strict()
 
-export const recurringRuleInputSchema = z.object({
-  name: z.string().min(1),
-  amountMinor: z.number().int().positive(),
-  direction: z.enum(['income', 'expense']),
-  accountId: z.string().optional(),
-  paymentAccountId: z.string().optional(),
-  categoryId: z.string(),
-  frequency: z.enum(['monthly', 'weekly', 'yearly', 'custom']),
-  dayOfMonth: z.number().int().min(1).max(31).optional(),
-  uncertainty: z.enum(['fixed', 'variable_date', 'variable_amount']),
-  includeInBaseScenario: z.boolean().default(true),
-  startDate: z.string(),
-  endDate: z.string().optional(),
-  isActive: z.boolean().default(true),
-})
+export const billInputSchema = z
+  .object({
+    accountId: z.string().optional(),
+    name: z.string().min(1),
+    billType: z.enum(['credit_card', 'rent', 'loan', 'utility', 'subscription', 'other']),
+    statementMonth: z.string().optional(),
+    totalAmountMinor: z.number().int().positive(),
+    paidAmountMinor: z.number().int().nonnegative().default(0),
+    dueDate: z.string(),
+    status: z.enum(['unpaid', 'partial', 'paid', 'installment']).default('unpaid'),
+    canInstallment: z.boolean().default(false),
+    nonInstallmentAmountMinor: z.number().int().nonnegative().optional(),
+    installmentEligibleAmountMinor: z.number().int().nonnegative().optional(),
+  })
+  .strict()
+
+export const billUpdateSchema = billInputSchema.partial().strict()
+
+export const recurringRuleInputSchema = z
+  .object({
+    name: z.string().min(1),
+    amountMinor: z.number().int().positive(),
+    direction: z.enum(['income', 'expense']),
+    accountId: z.string().optional(),
+    paymentAccountId: z.string().optional(),
+    categoryId: z.string(),
+    frequency: z.enum(['monthly', 'weekly', 'yearly', 'custom']),
+    dayOfMonth: z.number().int().min(1).max(31).optional(),
+    uncertainty: z.enum(['fixed', 'variable_date', 'variable_amount']),
+    includeInBaseScenario: z.boolean().default(true),
+    startDate: z.string(),
+    endDate: z.string().optional(),
+    isActive: z.boolean().default(true),
+  })
+  .strict()
+
+export const recurringRuleUpdateSchema = recurringRuleInputSchema.partial().strict()
 
 export const installmentInputSchema = z.object({
   billId: z.string(),

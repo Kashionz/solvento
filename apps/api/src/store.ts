@@ -2,6 +2,7 @@ import {
   type Account,
   type AppSnapshot,
   type Bill,
+  createDefaultCategories,
   createDemoSnapshot,
   DEMO_EMAIL,
   DEMO_PASSWORD,
@@ -21,6 +22,14 @@ type SessionRecord = {
   token: string
   userId: string
   createdAt: string
+}
+
+type AccountPatch = Partial<Omit<Account, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>
+
+export class DuplicateEmailError extends Error {
+  constructor() {
+    super('Email already registered')
+  }
 }
 
 function nowIso() {
@@ -76,6 +85,16 @@ export class MemoryStore {
     return this.snapshot.users.find((user) => user.id === session.userId) ?? null
   }
 
+  createSession(userId: string) {
+    const token = this.createEntityId('sess')
+    this.sessions.set(token, {
+      token,
+      userId,
+      createdAt: nowIso(),
+    })
+    return token
+  }
+
   async login(email: string, password: string) {
     const user = this.snapshot.users.find((candidate) => candidate.email === email)
     if (!user?.passwordHash) {
@@ -87,15 +106,8 @@ export class MemoryStore {
       return null
     }
 
-    const token = this.createEntityId('sess')
-    this.sessions.set(token, {
-      token,
-      userId: user.id,
-      createdAt: nowIso(),
-    })
-
     return {
-      token,
+      token: this.createSession(user.id),
       user,
     }
   }
@@ -109,7 +121,7 @@ export class MemoryStore {
   register(email: string, password: string, displayName: string) {
     const existing = this.snapshot.users.find((user) => user.email === email)
     if (existing) {
-      throw new Error('Email already registered')
+      throw new DuplicateEmailError()
     }
 
     const user: User = {
@@ -123,6 +135,11 @@ export class MemoryStore {
     return argon2.hash(password).then((passwordHash) => {
       user.passwordHash = passwordHash
       this.snapshot.users.push(user)
+      this.snapshot.categories.push(
+        ...createDefaultCategories(user.id, {
+          idPrefix: user.id,
+        }),
+      )
       return user
     })
   }
@@ -175,7 +192,7 @@ export class MemoryStore {
     return account
   }
 
-  updateAccount(userId: string, id: string, patch: Partial<Account>) {
+  updateAccount(userId: string, id: string, patch: AccountPatch) {
     const account = this.getAccount(userId, id)
     if (!account) {
       return null
@@ -317,6 +334,15 @@ export class MemoryStore {
     }
     Object.assign(bill, patch)
     return this.touchEntity(bill)
+  }
+
+  deleteBill(userId: string, id: string) {
+    const index = this.snapshot.bills.findIndex((bill) => bill.userId === userId && bill.id === id)
+    if (index === -1) {
+      return false
+    }
+    this.snapshot.bills.splice(index, 1)
+    return true
   }
 
   addBillPayment(userId: string, id: string, amountMinor: number) {

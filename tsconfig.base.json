@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "useDefineForClassFields": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@cashpilot/shared": ["packages/shared/src/index.ts"],
+      "@cashpilot/shared/*": ["packages/shared/src/*"],
+      "@cashpilot/rules": ["packages/rules/src/index.ts"],
+      "@cashpilot/rules/*": ["packages/rules/src/*"],
+      "@cashpilot/db": ["packages/db/src/index.ts"],
+      "@cashpilot/db/*": ["packages/db/src/*"]
+    }
+  }
+}

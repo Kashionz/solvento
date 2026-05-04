@@ -1,0 +1,48 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(79, 110, 247, 0.18), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(123, 92, 245, 0.12), transparent 28%), #06080d;
+  color: #f0f2ff;
+  font-family: "DM Sans", "Noto Sans TC", system-ui, sans-serif;
+}
+
+.cashpilot-header,
+.cashpilot-navbar {
+  background: rgba(11, 15, 24, 0.88);
+  backdrop-filter: blur(16px);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.cashpilot-surface {
+  background: linear-gradient(180deg, rgba(28, 30, 40, 0.96), rgba(18, 21, 30, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+
+.loading-screen,
+.login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.notification-row {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

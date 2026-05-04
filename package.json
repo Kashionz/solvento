@@ -1,0 +1,28 @@
+{
+  "name": "cashpilot-web",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.24.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"pnpm --filter @cashpilot/api dev\" \"pnpm --filter @cashpilot/web dev\"",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "biome check .",
+    "test": "pnpm -r test",
+    "test:ui": "pnpm --filter @cashpilot/web test",
+    "test:e2e": "playwright test",
+    "db:generate": "pnpm --filter @cashpilot/db db:generate",
+    "db:migrate": "pnpm --filter @cashpilot/db db:migrate",
+    "db:seed": "pnpm --filter @cashpilot/db db:seed"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.14",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "25.6.0",
+    "concurrently": "9.2.1",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.5"
+  }
+}

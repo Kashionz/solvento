@@ -1,0 +1,32 @@
+{
+  "name": "@cashpilot/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --exclude dist/**"
+  },
+  "dependencies": {
+    "@cashpilot/db": "workspace:*",
+    "@cashpilot/rules": "workspace:*",
+    "@cashpilot/shared": "workspace:*",
+    "@fastify/cookie": "11.0.2",
+    "@fastify/cors": "11.2.0",
+    "@fastify/helmet": "13.0.2",
+    "@fastify/rate-limit": "10.3.0",
+    "@fastify/swagger": "9.7.0",
+    "@fastify/swagger-ui": "5.2.6",
+    "argon2": "0.44.0",
+    "dayjs": "1.11.20",
+    "dotenv": "17.4.2",
+    "fastify": "5.8.5",
+    "nanoid": "5.1.11",
+    "zod": "4.4.2"
+  },
+  "devDependencies": {
+    "@types/pg": "8.20.0"
+  }
+}

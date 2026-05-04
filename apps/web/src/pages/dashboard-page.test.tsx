@@ -1,11 +1,13 @@
-import type { DashboardSummary } from '@cashpilot/shared'
+import type { CashflowProjection, DashboardSummary } from '@cashpilot/shared'
 import { screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { renderWithProviders } from '../test/render-with-providers'
 import { DashboardPage } from './dashboard-page'
 
-const { summaryMock } = vi.hoisted(() => ({
+const { scenariosMock, summaryMock } = vi.hoisted(() => ({
+  scenariosMock:
+    vi.fn<() => Promise<Record<'conservative' | 'base' | 'optimistic', CashflowProjection>>>(),
   summaryMock: vi.fn<() => Promise<DashboardSummary>>(),
 }))
 
@@ -16,13 +18,36 @@ vi.mock('../api', async () => {
     ...actual,
     cashflowApi: {
       ...actual.cashflowApi,
+      scenarios: scenariosMock,
       summary: summaryMock,
     },
   }
 })
 
 describe('DashboardPage', () => {
+  function createProjection(
+    scenario: CashflowProjection['scenario'],
+    riskLevel: CashflowProjection['riskLevel'],
+    minimumBalanceMinor: number,
+    dailySafeSpendMinor: number,
+  ): CashflowProjection {
+    return {
+      scenario,
+      startDate: '2026-05-04',
+      endDate: '2026-08-02',
+      openingBalanceMinor: 3800000,
+      closingBalanceMinor: 2400000,
+      minimumBalanceMinor,
+      minimumBalanceDate: '2026-05-12',
+      safeToSpendMinor: 960000,
+      dailySafeSpendMinor,
+      riskLevel,
+      events: [],
+    }
+  }
+
   beforeEach(() => {
+    scenariosMock.mockReset()
     summaryMock.mockReset()
     summaryMock.mockResolvedValue({
       netWorthMinor: 12000000,
@@ -74,6 +99,11 @@ describe('DashboardPage', () => {
         },
       ],
     })
+    scenariosMock.mockResolvedValue({
+      conservative: createProjection('conservative', 'critical', -180000, 0),
+      base: createProjection('base', 'warning', 820000, 32000),
+      optimistic: createProjection('optimistic', 'safe', 2140000, 68000),
+    })
   })
 
   it('會渲染關鍵財務指標、提醒與建議', async () => {
@@ -83,6 +113,16 @@ describe('DashboardPage', () => {
     expect(screen.getByText('現金流即將跌破安全線')).toBeInTheDocument()
     expect(screen.getByText('玉山信用卡')).toBeInTheDocument()
     expect(screen.getByText('建議改採短期分期')).toBeInTheDocument()
-    expect(screen.getAllByText('風險')).toHaveLength(2)
+    expect(screen.getAllByText('風險')).toHaveLength(3)
+  })
+
+  it('會顯示 Week4 需要的情境推演與建議投資資訊', async () => {
+    renderWithProviders(<DashboardPage />)
+
+    expect(await screen.findByText('情境推演')).toBeInTheDocument()
+    expect(screen.getByText('保守')).toBeInTheDocument()
+    expect(screen.getByText('基準')).toBeInTheDocument()
+    expect(screen.getByText('樂觀')).toBeInTheDocument()
+    expect(screen.getByText('建議投資')).toBeInTheDocument()
   })
 })

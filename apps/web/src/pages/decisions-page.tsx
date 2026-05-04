@@ -95,9 +95,10 @@ export function DecisionsPage() {
             <TextInput
               label="品項"
               value={purchaseForm.name}
-              onChange={(event) =>
-                setPurchaseForm((current) => ({ ...current, name: event.currentTarget.value }))
-              }
+              onChange={(event) => {
+                const { value } = event.currentTarget
+                setPurchaseForm((current) => ({ ...current, name: value }))
+              }}
             />
             <NumberInput
               label="價格（minor）"
@@ -146,9 +147,10 @@ export function DecisionsPage() {
             <TextInput
               label="旅行名稱"
               value={travelForm.name}
-              onChange={(event) =>
-                setTravelForm((current) => ({ ...current, name: event.currentTarget.value }))
-              }
+              onChange={(event) => {
+                const { value } = event.currentTarget
+                setTravelForm((current) => ({ ...current, name: value }))
+              }}
             />
             <NumberInput
               label="預估旅費（minor）"

@@ -194,6 +194,8 @@ export interface CashflowProjection {
   events: CashflowEvent[]
 }
 
+export type CashflowScenarioSet = Record<Scenario, CashflowProjection>
+
 export interface CashflowImpact {
   period: number
   dueDate: string

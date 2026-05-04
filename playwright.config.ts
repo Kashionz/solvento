@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
   use: {
     baseURL: 'http://127.0.0.1:3000',
@@ -10,7 +11,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'pnpm --filter @cashpilot/api dev',
+      command: 'NODE_ENV=test pnpm --filter @cashpilot/api dev',
       url: 'http://127.0.0.1:3001/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

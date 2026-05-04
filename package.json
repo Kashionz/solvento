@@ -12,6 +12,7 @@
     "test": "pnpm -r test",
     "test:ui": "pnpm --filter @cashpilot/web test",
     "test:e2e": "playwright test",
+    "deploy:compose": "./scripts/deploy-compose.sh",
     "db:generate": "pnpm --filter @cashpilot/db db:generate",
     "db:migrate": "pnpm --filter @cashpilot/db db:migrate",
     "db:seed": "pnpm --filter @cashpilot/db db:seed"

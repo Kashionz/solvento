@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createPgliteDatabase, users } from '@cashpilot/db'
 import { DEMO_EMAIL, DEMO_PASSWORD } from '@cashpilot/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -293,5 +297,212 @@ describe('cashpilot api', () => {
     expect(
       listResponse.json().some((bill: { id: string }) => bill.id === 'bill-loan-2026-05'),
     ).toBe(false)
+  })
+
+  it('returns all cashflow scenarios for dashboard comparisons', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/cashflow/scenarios',
+      headers: {
+        cookie: sessionCookie,
+      },
+      payload: {
+        rangeDays: 180,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        conservative: expect.objectContaining({
+          scenario: 'conservative',
+        }),
+        base: expect.objectContaining({
+          scenario: 'base',
+        }),
+        optimistic: expect.objectContaining({
+          scenario: 'optimistic',
+        }),
+      }),
+    )
+  })
+
+  it('creates and deletes a goal through the goals api', async () => {
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/goals',
+      headers: {
+        cookie: sessionCookie,
+      },
+      payload: {
+        name: '日本旅行基金',
+        targetAmountMinor: 5000000,
+        currentAmountMinor: 250000,
+        priority: 'medium',
+        goalType: 'travel',
+        monthlyContributionMinor: 150000,
+        status: 'active',
+      },
+    })
+
+    expect(createResponse.statusCode).toBe(201)
+    const createdGoalId = createResponse.json().id as string
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/goals/${createdGoalId}`,
+      headers: {
+        cookie: sessionCookie,
+      },
+    })
+
+    expect(deleteResponse.statusCode).toBe(204)
+
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/goals',
+      headers: {
+        cookie: sessionCookie,
+      },
+    })
+
+    expect(listResponse.statusCode).toBe(200)
+    expect(listResponse.json().some((goal: { id: string }) => goal.id === createdGoalId)).toBe(
+      false,
+    )
+  })
+
+  it('exports a scoped backup payload for the authenticated user', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/export',
+      headers: {
+        cookie: sessionCookie,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['content-type']).toContain('application/json')
+    expect(response.headers['content-disposition']).toContain('cashpilot-backup')
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        version: '0.1.0',
+        snapshot: expect.objectContaining({
+          users: [expect.objectContaining({ id: 'usr-demo' })],
+          accounts: expect.arrayContaining([expect.objectContaining({ userId: 'usr-demo' })]),
+        }),
+      }),
+    )
+  })
+
+  it('persists created accounts across app restarts when using the database-backed store', async () => {
+    const previousPgliteDir = process.env.CASHPILOT_PGLITE_DIR
+    const pgliteDir = mkdtempSync(join(tmpdir(), 'cashpilot-pglite-'))
+    process.env.CASHPILOT_PGLITE_DIR = pgliteDir
+
+    const firstApp = await buildApp()
+
+    try {
+      const loginResponse = await firstApp.inject({
+        method: 'POST',
+        url: '/api/v1/auth/login',
+        payload: {
+          email: DEMO_EMAIL,
+          password: DEMO_PASSWORD,
+        },
+      })
+      const cookie = loginResponse.cookies.find(
+        (item: { name: string; value: string }) => item.name === 'cashpilot_session',
+      )
+      const firstSessionCookie = `cashpilot_session=${cookie?.value ?? ''}`
+
+      const createResponse = await firstApp.inject({
+        method: 'POST',
+        url: '/api/v1/accounts',
+        headers: {
+          cookie: firstSessionCookie,
+        },
+        payload: {
+          name: '跨重啟測試帳戶',
+          type: 'bank',
+          currency: 'TWD',
+          balanceMinor: 990000,
+          isActive: true,
+        },
+      })
+
+      expect(createResponse.statusCode).toBe(201)
+    } finally {
+      await firstApp.close()
+    }
+
+    const secondApp = await buildApp()
+
+    try {
+      const secondLoginResponse = await secondApp.inject({
+        method: 'POST',
+        url: '/api/v1/auth/login',
+        payload: {
+          email: DEMO_EMAIL,
+          password: DEMO_PASSWORD,
+        },
+      })
+      const secondCookie = secondLoginResponse.cookies.find(
+        (item: { name: string; value: string }) => item.name === 'cashpilot_session',
+      )
+      const secondSessionCookie = `cashpilot_session=${secondCookie?.value ?? ''}`
+
+      const listResponse = await secondApp.inject({
+        method: 'GET',
+        url: '/api/v1/accounts',
+        headers: {
+          cookie: secondSessionCookie,
+        },
+      })
+
+      expect(listResponse.statusCode).toBe(200)
+      expect(
+        listResponse.json().some((account: { name: string }) => account.name === '跨重啟測試帳戶'),
+      ).toBe(true)
+    } finally {
+      await secondApp.close()
+      if (previousPgliteDir) {
+        process.env.CASHPILOT_PGLITE_DIR = previousPgliteDir
+      } else {
+        delete process.env.CASHPILOT_PGLITE_DIR
+      }
+      rmSync(pgliteDir, { force: true, recursive: true })
+    }
+  })
+
+  it('backfills the demo password hash into a legacy persisted snapshot', async () => {
+    const previousPgliteDir = process.env.CASHPILOT_PGLITE_DIR
+    const pgliteDir = mkdtempSync(join(tmpdir(), 'cashpilot-pglite-'))
+    process.env.CASHPILOT_PGLITE_DIR = pgliteDir
+
+    const seededApp = await buildApp()
+    await seededApp.close()
+
+    const legacyConnection = await createPgliteDatabase(pgliteDir)
+    await legacyConnection.db.update(users).set({ passwordHash: null })
+    await legacyConnection.client.close()
+
+    const recoveredApp = await buildApp()
+    await recoveredApp.close()
+
+    const verifyConnection = await createPgliteDatabase(pgliteDir)
+    const [demoUser] = await verifyConnection.db.select().from(users)
+
+    try {
+      expect(demoUser?.passwordHash).toBeTruthy()
+    } finally {
+      await verifyConnection.client.close()
+      if (previousPgliteDir) {
+        process.env.CASHPILOT_PGLITE_DIR = previousPgliteDir
+      } else {
+        delete process.env.CASHPILOT_PGLITE_DIR
+      }
+      rmSync(pgliteDir, { force: true, recursive: true })
+    }
   })
 })

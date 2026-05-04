@@ -1,3 +1,4 @@
+import type { CashflowProjection } from '@cashpilot/shared'
 import { formatMinorUnits } from '@cashpilot/shared'
 import {
   Alert,
@@ -18,17 +19,28 @@ import { PageHeader } from '../components/page-header'
 import { StatCard } from '../components/stat-card'
 import { StatusPill } from '../components/status-pill'
 
+const SCENARIO_LABELS: Record<CashflowProjection['scenario'], string> = {
+  conservative: '保守',
+  base: '基準',
+  optimistic: '樂觀',
+}
+
 export function DashboardPage() {
+  const scenarioComparison = useQuery({
+    queryKey: ['dashboard', 'scenarios'],
+    queryFn: () => cashflowApi.scenarios(90),
+  })
+
   const summary = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => cashflowApi.summary(),
   })
 
-  if (summary.isLoading) {
+  if (summary.isLoading || scenarioComparison.isLoading) {
     return <Text c="dimmed">載入 Dashboard...</Text>
   }
 
-  if (!summary.data) {
+  if (!summary.data || !scenarioComparison.data) {
     return <Alert color="red">無法載入 Dashboard</Alert>
   }
 
@@ -77,6 +89,10 @@ export function DashboardPage() {
                 label="建議存款"
                 value={formatMinorUnits(summary.data.suggestedSavingsMinor)}
               />
+              <StatCard
+                label="建議投資"
+                value={formatMinorUnits(summary.data.suggestedInvestmentMinor)}
+              />
             </SimpleGrid>
           </Stack>
         </Paper>
@@ -102,6 +118,58 @@ export function DashboardPage() {
           </Stack>
         </Paper>
       </SimpleGrid>
+
+      <Paper className="cashpilot-surface" p="lg" radius="xl">
+        <Stack gap="lg">
+          <Group justify="space-between">
+            <div>
+              <Text c="dimmed" ff="monospace" fz="xs" tt="uppercase">
+                90 天 projection
+              </Text>
+              <Title order={4}>情境推演</Title>
+            </div>
+            <Text c="dimmed" fz="sm">
+              用三種情境先看最低點，再決定這個月要不要新增支出。
+            </Text>
+          </Group>
+
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+            {(['conservative', 'base', 'optimistic'] as Array<CashflowProjection['scenario']>).map(
+              (scenario) => {
+                const projection = scenarioComparison.data[scenario]
+
+                return (
+                  <Paper key={scenario} withBorder p="md" radius="xl">
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Text ff="monospace" fz="xs" tt="uppercase">
+                          {SCENARIO_LABELS[scenario]}
+                        </Text>
+                        <StatusPill riskLevel={projection.riskLevel} />
+                      </Group>
+
+                      <SimpleGrid cols={1}>
+                        <StatCard
+                          label="最低餘額"
+                          value={formatMinorUnits(projection.minimumBalanceMinor)}
+                        />
+                        <StatCard
+                          label="今日安全花費"
+                          value={formatMinorUnits(projection.dailySafeSpendMinor)}
+                        />
+                      </SimpleGrid>
+
+                      <Text c="dimmed" fz="sm">
+                        最低點落在 {projection.minimumBalanceDate}
+                      </Text>
+                    </Stack>
+                  </Paper>
+                )
+              },
+            )}
+          </SimpleGrid>
+        </Stack>
+      </Paper>
 
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
         <Paper className="cashpilot-surface" p="lg" radius="xl">

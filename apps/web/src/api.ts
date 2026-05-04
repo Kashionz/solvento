@@ -2,6 +2,7 @@ import type {
   Account,
   Bill,
   CashflowProjection,
+  CashflowScenarioSet,
   Category,
   DashboardSummary,
   DecisionHistoryItem,
@@ -43,7 +44,7 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = '/api/v1'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 export async function apiRequest<T>(path: string, options: ApiOptions = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -95,6 +96,11 @@ export const cashflowApi = {
     apiRequest<CashflowProjection>(
       `/cashflow/projection?rangeDays=${rangeDays}&scenario=${scenario}`,
     ),
+  scenarios: (rangeDays = 90) =>
+    apiRequest<CashflowScenarioSet>('/cashflow/scenarios', {
+      method: 'POST',
+      bodyJson: { rangeDays },
+    }),
   recalculate: () =>
     apiRequest<{
       projection: CashflowProjection
@@ -203,6 +209,20 @@ export const billApi = {
 
 export const goalApi = {
   list: () => apiRequest<GoalWithForecast[]>('/goals'),
+  create: (payload: Omit<Goal, 'id' | 'userId'>) =>
+    apiRequest<Goal>('/goals', {
+      method: 'POST',
+      bodyJson: payload,
+    }),
+  update: (id: string, payload: Partial<Omit<Goal, 'id' | 'userId'>>) =>
+    apiRequest<Goal>(`/goals/${id}`, {
+      method: 'PATCH',
+      bodyJson: payload,
+    }),
+  delete: (id: string) =>
+    apiRequest<void>(`/goals/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 export const metadataApi = {

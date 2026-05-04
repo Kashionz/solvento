@@ -16,6 +16,8 @@ import {
 import argon2 from 'argon2'
 import { nanoid } from 'nanoid'
 
+import { createSnapshotPersistence, type SnapshotPersistence } from './store-persistence'
+
 type Identifiable = { id: string; userId: string }
 
 type SessionRecord = {
@@ -43,24 +45,33 @@ function cloneValue<T>(value: T) {
 export class MemoryStore {
   snapshot: AppSnapshot
   private readonly sessions = new Map<string, SessionRecord>()
+  private readonly persistence?: SnapshotPersistence
 
-  private constructor(snapshot: AppSnapshot) {
+  private constructor(snapshot: AppSnapshot, persistence?: SnapshotPersistence) {
     this.snapshot = snapshot
+    this.persistence = persistence
   }
 
   static async create() {
-    const store = new MemoryStore(createDemoSnapshot())
-    await store.seedPasswordHash()
+    const persistence = await createSnapshotPersistence()
+    const persistedSnapshot = await persistence.loadSnapshot()
+    const store = new MemoryStore(persistedSnapshot ?? createDemoSnapshot(), persistence)
+    const shouldPersistImmediately = !persistedSnapshot
+    const didSeedPasswordHash = await store.seedPasswordHash()
+    if (shouldPersistImmediately || didSeedPasswordHash) {
+      await store.persistSnapshot()
+    }
     return store
   }
 
   private async seedPasswordHash() {
     const demoUser = this.snapshot.users.find((user) => user.email === DEMO_EMAIL)
     if (!demoUser || demoUser.passwordHash) {
-      return
+      return false
     }
 
     demoUser.passwordHash = await argon2.hash(DEMO_PASSWORD)
+    return true
   }
 
   private createEntityId(prefix: string) {
@@ -70,6 +81,16 @@ export class MemoryStore {
   private touchEntity<T extends { updatedAt: string }>(entity: T) {
     entity.updatedAt = nowIso()
     return entity
+  }
+
+  private async persistSnapshot() {
+    if (this.persistence) {
+      await this.persistence.saveSnapshot(this.snapshot)
+    }
+  }
+
+  async close() {
+    await this.persistence?.close()
   }
 
   getUserBySession(token?: string) {
@@ -118,7 +139,7 @@ export class MemoryStore {
     }
   }
 
-  register(email: string, password: string, displayName: string) {
+  async register(email: string, password: string, displayName: string) {
     const existing = this.snapshot.users.find((user) => user.email === email)
     if (existing) {
       throw new DuplicateEmailError()
@@ -132,16 +153,15 @@ export class MemoryStore {
       updatedAt: nowIso(),
     }
 
-    return argon2.hash(password).then((passwordHash) => {
-      user.passwordHash = passwordHash
-      this.snapshot.users.push(user)
-      this.snapshot.categories.push(
-        ...createDefaultCategories(user.id, {
-          idPrefix: user.id,
-        }),
-      )
-      return user
-    })
+    user.passwordHash = await argon2.hash(password)
+    this.snapshot.users.push(user)
+    this.snapshot.categories.push(
+      ...createDefaultCategories(user.id, {
+        idPrefix: user.id,
+      }),
+    )
+    await this.persistSnapshot()
+    return user
   }
 
   getScopedSnapshot(userId: string): AppSnapshot {
@@ -180,7 +200,10 @@ export class MemoryStore {
     )
   }
 
-  createAccount(userId: string, input: Omit<Account, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) {
+  async createAccount(
+    userId: string,
+    input: Omit<Account, 'id' | 'userId' | 'createdAt' | 'updatedAt'>,
+  ) {
     const account: Account = {
       id: this.createEntityId('acc'),
       userId,
@@ -189,20 +212,23 @@ export class MemoryStore {
       ...input,
     }
     this.snapshot.accounts.push(account)
+    await this.persistSnapshot()
     return account
   }
 
-  updateAccount(userId: string, id: string, patch: AccountPatch) {
+  async updateAccount(userId: string, id: string, patch: AccountPatch) {
     const account = this.getAccount(userId, id)
     if (!account) {
       return null
     }
 
     Object.assign(account, patch)
-    return this.touchEntity(account)
+    const updated = this.touchEntity(account)
+    await this.persistSnapshot()
+    return updated
   }
 
-  deleteAccount(userId: string, id: string) {
+  async deleteAccount(userId: string, id: string) {
     const index = this.snapshot.accounts.findIndex(
       (account) => account.userId === userId && account.id === id,
     )
@@ -210,6 +236,7 @@ export class MemoryStore {
       return false
     }
     this.snapshot.accounts.splice(index, 1)
+    await this.persistSnapshot()
     return true
   }
 
@@ -228,7 +255,7 @@ export class MemoryStore {
     })
   }
 
-  createTransaction(
+  async createTransaction(
     userId: string,
     input: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>,
   ) {
@@ -240,10 +267,11 @@ export class MemoryStore {
       ...input,
     }
     this.snapshot.transactions.push(transaction)
+    await this.persistSnapshot()
     return transaction
   }
 
-  updateTransaction(userId: string, id: string, patch: Partial<Transaction>) {
+  async updateTransaction(userId: string, id: string, patch: Partial<Transaction>) {
     const transaction = this.snapshot.transactions.find(
       (item) => item.userId === userId && item.id === id,
     )
@@ -252,10 +280,12 @@ export class MemoryStore {
     }
 
     Object.assign(transaction, patch)
-    return this.touchEntity(transaction)
+    const updated = this.touchEntity(transaction)
+    await this.persistSnapshot()
+    return updated
   }
 
-  deleteTransaction(userId: string, id: string) {
+  async deleteTransaction(userId: string, id: string) {
     const index = this.snapshot.transactions.findIndex(
       (item) => item.userId === userId && item.id === id,
     )
@@ -263,6 +293,7 @@ export class MemoryStore {
       return false
     }
     this.snapshot.transactions.splice(index, 1)
+    await this.persistSnapshot()
     return true
   }
 
@@ -270,17 +301,18 @@ export class MemoryStore {
     return this.snapshot.recurringRules.filter((rule) => rule.userId === userId)
   }
 
-  createRecurringRule(userId: string, input: Omit<RecurringRule, 'id' | 'userId'>) {
+  async createRecurringRule(userId: string, input: Omit<RecurringRule, 'id' | 'userId'>) {
     const rule: RecurringRule = {
       id: this.createEntityId('rr'),
       userId,
       ...input,
     }
     this.snapshot.recurringRules.push(rule)
+    await this.persistSnapshot()
     return rule
   }
 
-  updateRecurringRule(userId: string, id: string, patch: Partial<RecurringRule>) {
+  async updateRecurringRule(userId: string, id: string, patch: Partial<RecurringRule>) {
     const rule = this.snapshot.recurringRules.find(
       (item) => item.userId === userId && item.id === id,
     )
@@ -288,10 +320,11 @@ export class MemoryStore {
       return null
     }
     Object.assign(rule, patch)
+    await this.persistSnapshot()
     return rule
   }
 
-  deleteRecurringRule(userId: string, id: string) {
+  async deleteRecurringRule(userId: string, id: string) {
     const index = this.snapshot.recurringRules.findIndex(
       (item) => item.userId === userId && item.id === id,
     )
@@ -299,6 +332,7 @@ export class MemoryStore {
       return false
     }
     this.snapshot.recurringRules.splice(index, 1)
+    await this.persistSnapshot()
     return true
   }
 
@@ -315,7 +349,7 @@ export class MemoryStore {
     return this.snapshot.bills.find((bill) => bill.userId === userId && bill.id === id) ?? null
   }
 
-  createBill(userId: string, input: Omit<Bill, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) {
+  async createBill(userId: string, input: Omit<Bill, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) {
     const bill: Bill = {
       id: this.createEntityId('bill'),
       userId,
@@ -324,28 +358,32 @@ export class MemoryStore {
       ...input,
     }
     this.snapshot.bills.push(bill)
+    await this.persistSnapshot()
     return bill
   }
 
-  updateBill(userId: string, id: string, patch: Partial<Bill>) {
+  async updateBill(userId: string, id: string, patch: Partial<Bill>) {
     const bill = this.getBill(userId, id)
     if (!bill) {
       return null
     }
     Object.assign(bill, patch)
-    return this.touchEntity(bill)
+    const updated = this.touchEntity(bill)
+    await this.persistSnapshot()
+    return updated
   }
 
-  deleteBill(userId: string, id: string) {
+  async deleteBill(userId: string, id: string) {
     const index = this.snapshot.bills.findIndex((bill) => bill.userId === userId && bill.id === id)
     if (index === -1) {
       return false
     }
     this.snapshot.bills.splice(index, 1)
+    await this.persistSnapshot()
     return true
   }
 
-  addBillPayment(userId: string, id: string, amountMinor: number) {
+  async addBillPayment(userId: string, id: string, amountMinor: number) {
     const bill = this.getBill(userId, id)
     if (!bill) {
       return null
@@ -353,10 +391,12 @@ export class MemoryStore {
 
     bill.paidAmountMinor = Math.min(bill.totalAmountMinor, bill.paidAmountMinor + amountMinor)
     bill.status = bill.paidAmountMinor >= bill.totalAmountMinor ? 'paid' : 'partial'
-    return this.touchEntity(bill)
+    const updated = this.touchEntity(bill)
+    await this.persistSnapshot()
+    return updated
   }
 
-  markBillPaid(userId: string, id: string) {
+  async markBillPaid(userId: string, id: string) {
     const bill = this.getBill(userId, id)
     if (!bill) {
       return null
@@ -364,7 +404,9 @@ export class MemoryStore {
 
     bill.paidAmountMinor = bill.totalAmountMinor
     bill.status = 'paid'
-    return this.touchEntity(bill)
+    const updated = this.touchEntity(bill)
+    await this.persistSnapshot()
+    return updated
   }
 
   listInstallmentPlans(userId: string) {
@@ -378,12 +420,13 @@ export class MemoryStore {
     )
   }
 
-  addInstallmentPlan(plan: InstallmentPlan) {
+  async addInstallmentPlan(plan: InstallmentPlan) {
     this.snapshot.installmentPlans.push(plan)
+    await this.persistSnapshot()
     return plan
   }
 
-  cancelInstallmentPlan(userId: string, id: string) {
+  async cancelInstallmentPlan(userId: string, id: string) {
     const plan = this.getInstallmentPlan(userId, id)
     if (!plan) {
       return null
@@ -395,10 +438,11 @@ export class MemoryStore {
       ...payment,
       status: payment.status === 'paid' ? 'paid' : 'cancelled',
     }))
+    await this.persistSnapshot()
     return plan
   }
 
-  markInstallmentPaymentPaid(userId: string, planId: string, paymentId: string) {
+  async markInstallmentPaymentPaid(userId: string, planId: string, paymentId: string) {
     const plan = this.getInstallmentPlan(userId, planId)
     if (!plan) {
       return null
@@ -412,6 +456,7 @@ export class MemoryStore {
     payment.status = 'paid'
     payment.paidAt = nowIso()
     plan.updatedAt = nowIso()
+    await this.persistSnapshot()
     return payment
   }
 
@@ -423,26 +468,39 @@ export class MemoryStore {
     return this.snapshot.goals.find((goal) => goal.userId === userId && goal.id === id) ?? null
   }
 
-  createGoal(userId: string, input: Omit<Goal, 'id' | 'userId'>) {
+  async createGoal(userId: string, input: Omit<Goal, 'id' | 'userId'>) {
     const goal: Goal = {
       id: this.createEntityId('goal'),
       userId,
       ...input,
     }
     this.snapshot.goals.push(goal)
+    await this.persistSnapshot()
     return goal
   }
 
-  updateGoal(userId: string, id: string, patch: Partial<Goal>) {
+  async updateGoal(userId: string, id: string, patch: Partial<Goal>) {
     const goal = this.getGoal(userId, id)
     if (!goal) {
       return null
     }
     Object.assign(goal, patch)
+    await this.persistSnapshot()
     return goal
   }
 
-  contributeGoal(userId: string, id: string, amountMinor: number) {
+  async deleteGoal(userId: string, id: string) {
+    const index = this.snapshot.goals.findIndex((goal) => goal.userId === userId && goal.id === id)
+    if (index === -1) {
+      return false
+    }
+
+    this.snapshot.goals.splice(index, 1)
+    await this.persistSnapshot()
+    return true
+  }
+
+  async contributeGoal(userId: string, id: string, amountMinor: number) {
     const goal = this.getGoal(userId, id)
     if (!goal) {
       return null
@@ -452,10 +510,11 @@ export class MemoryStore {
     if (goal.currentAmountMinor >= goal.targetAmountMinor) {
       goal.status = 'completed'
     }
+    await this.persistSnapshot()
     return goal
   }
 
-  appendDecisionHistory(
+  async appendDecisionHistory(
     userId: string,
     entry: Omit<DecisionHistoryItem, 'id' | 'userId' | 'createdAt'>,
   ) {
@@ -466,6 +525,7 @@ export class MemoryStore {
       ...entry,
     }
     this.snapshot.decisionHistory.push(record)
+    await this.persistSnapshot()
     return record
   }
 

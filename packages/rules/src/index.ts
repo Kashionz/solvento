@@ -465,7 +465,10 @@ function createInstallmentPlan(
     totalPrincipalMinor,
     totalInterestMinor,
     totalPaymentMinor,
-    payments,
+    payments: payments.map((payment) => ({
+      ...payment,
+      planId: `ipl-${input.billId}-${referenceDate}-${input.periods}`,
+    })),
   }
 
   return {

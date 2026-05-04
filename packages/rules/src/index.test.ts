@@ -234,6 +234,22 @@ describe('cashpilot rules engine', () => {
     expect(ranked[0]?.debtClearMonth).not.toBe(longer.debtClearMonth)
   })
 
+  it('materializes installment payments with the persisted plan id', async () => {
+    const rules = await loadRules()
+    const data = createFixture()
+
+    const plan = rules.materializeInstallmentPlan(data, {
+      billId: 'bill-yushan',
+      eligibleAmountMinor: 1135000,
+      nonInstallmentAmountMinor: 298700,
+      aprBps: 1100,
+      periods: 3,
+    })
+
+    expect(plan.payments.length).toBeGreaterThan(0)
+    expect(plan.payments.every((payment) => payment.planId === plan.id)).toBe(true)
+  })
+
   it('forces monthly savings suggestion to zero during high risk periods', async () => {
     const rules = await loadRules()
     const data = createFixture()

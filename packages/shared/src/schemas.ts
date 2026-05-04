@@ -149,4 +149,8 @@ export const projectionQuerySchema = z.object({
   scenario: z.enum(scenarios).default('base'),
 })
 
+export const scenarioComparisonSchema = z.object({
+  rangeDays: z.coerce.number().int().min(14).max(365).default(90),
+})
+
 export const riskLevelSchema = z.enum(riskLevels)

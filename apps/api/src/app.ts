@@ -9,6 +9,7 @@ import {
   simulateInstallment,
 } from '@cashpilot/rules'
 import {
+  APP_TODAY,
   accountInputSchema,
   accountUpdateSchema,
   type Bill,
@@ -24,6 +25,7 @@ import {
   recurringRuleInputSchema,
   recurringRuleUpdateSchema,
   registerSchema,
+  scenarioComparisonSchema,
   type Transaction,
   transactionInputSchema,
   transactionUpdateSchema,
@@ -61,6 +63,9 @@ export async function buildApp() {
   const app = Fastify({
     logger: false,
     bodyLimit: 1024 * 1024,
+  })
+  app.addHook('onClose', async () => {
+    await store.close()
   })
 
   await app.register(cookie, {
@@ -209,7 +214,7 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    return reply.code(201).send(store.createAccount(userId, body.data))
+    return reply.code(201).send(await store.createAccount(userId, body.data))
   })
 
   app.get('/api/v1/accounts/:id', async (request, reply) => {
@@ -236,7 +241,11 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    const account = store.updateAccount(userId, (request.params as { id: string }).id, body.data)
+    const account = await store.updateAccount(
+      userId,
+      (request.params as { id: string }).id,
+      body.data,
+    )
     if (!account) {
       return reply.code(404).send({ message: 'Account not found' })
     }
@@ -249,7 +258,7 @@ export async function buildApp() {
       return
     }
 
-    const deleted = store.deleteAccount(userId, (request.params as { id: string }).id)
+    const deleted = await store.deleteAccount(userId, (request.params as { id: string }).id)
     return reply
       .code(deleted ? 204 : 404)
       .send(deleted ? undefined : { message: 'Account not found' })
@@ -276,7 +285,7 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    return reply.code(201).send(store.createTransaction(userId, body.data))
+    return reply.code(201).send(await store.createTransaction(userId, body.data))
   })
 
   app.patch('/api/v1/transactions/:id', async (request, reply) => {
@@ -290,7 +299,7 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    const transaction = store.updateTransaction(
+    const transaction = await store.updateTransaction(
       userId,
       (request.params as { id: string }).id,
       body.data as Partial<Transaction>,
@@ -307,7 +316,7 @@ export async function buildApp() {
       return
     }
 
-    const deleted = store.deleteTransaction(userId, (request.params as { id: string }).id)
+    const deleted = await store.deleteTransaction(userId, (request.params as { id: string }).id)
     return reply
       .code(deleted ? 204 : 404)
       .send(deleted ? undefined : { message: 'Transaction not found' })
@@ -333,7 +342,7 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    return reply.code(201).send(store.createRecurringRule(userId, body.data))
+    return reply.code(201).send(await store.createRecurringRule(userId, body.data))
   })
 
   app.patch('/api/v1/recurring-rules/:id', async (request, reply) => {
@@ -347,7 +356,7 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    const rule = store.updateRecurringRule(
+    const rule = await store.updateRecurringRule(
       userId,
       (request.params as { id: string }).id,
       body.data as Partial<RecurringRule>,
@@ -364,7 +373,7 @@ export async function buildApp() {
       return
     }
 
-    const deleted = store.deleteRecurringRule(userId, (request.params as { id: string }).id)
+    const deleted = await store.deleteRecurringRule(userId, (request.params as { id: string }).id)
     return reply
       .code(deleted ? 204 : 404)
       .send(deleted ? undefined : { message: 'Recurring rule not found' })
@@ -391,7 +400,7 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    return reply.code(201).send(store.createBill(userId, body.data))
+    return reply.code(201).send(await store.createBill(userId, body.data))
   })
 
   app.get('/api/v1/bills/:id', async (request, reply) => {
@@ -418,7 +427,7 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    const bill = store.updateBill(
+    const bill = await store.updateBill(
       userId,
       (request.params as { id: string }).id,
       body.data as Partial<Bill>,
@@ -435,7 +444,7 @@ export async function buildApp() {
       return
     }
 
-    const deleted = store.deleteBill(userId, (request.params as { id: string }).id)
+    const deleted = await store.deleteBill(userId, (request.params as { id: string }).id)
     return reply.code(deleted ? 204 : 404).send(deleted ? undefined : { message: 'Bill not found' })
   })
 
@@ -450,7 +459,11 @@ export async function buildApp() {
       return reply.code(400).send({ message: 'amountMinor must be positive' })
     }
 
-    const bill = store.addBillPayment(userId, (request.params as { id: string }).id, amountMinor)
+    const bill = await store.addBillPayment(
+      userId,
+      (request.params as { id: string }).id,
+      amountMinor,
+    )
     if (!bill) {
       return reply.code(404).send({ message: 'Bill not found' })
     }
@@ -463,7 +476,7 @@ export async function buildApp() {
       return
     }
 
-    const bill = store.markBillPaid(userId, (request.params as { id: string }).id)
+    const bill = await store.markBillPaid(userId, (request.params as { id: string }).id)
     if (!bill) {
       return reply.code(404).send({ message: 'Bill not found' })
     }
@@ -504,8 +517,8 @@ export async function buildApp() {
 
     const snapshot = store.getScopedSnapshot(userId)
     const plan = materializeInstallmentPlan(snapshot, body.data, '2026-05-04')
-    store.addInstallmentPlan(plan)
-    store.updateBill(userId, body.data.billId, {
+    await store.addInstallmentPlan(plan)
+    await store.updateBill(userId, body.data.billId, {
       status: 'installment',
       totalAmountMinor: body.data.nonInstallmentAmountMinor,
       nonInstallmentAmountMinor: body.data.nonInstallmentAmountMinor,
@@ -544,7 +557,7 @@ export async function buildApp() {
       return
     }
 
-    const plan = store.cancelInstallmentPlan(userId, (request.params as { id: string }).id)
+    const plan = await store.cancelInstallmentPlan(userId, (request.params as { id: string }).id)
     if (!plan) {
       return reply.code(404).send({ message: 'Installment not found' })
     }
@@ -575,14 +588,29 @@ export async function buildApp() {
       return
     }
 
-    const scenario =
-      (request.body as { scenario?: 'conservative' | 'base' | 'optimistic' }).scenario ?? 'base'
+    const body = parseBody(scenarioComparisonSchema, request.body ?? {})
+    if (!body.ok) {
+      return reply.code(400).send(body.error)
+    }
+
     const snapshot = store.getScopedSnapshot(userId)
-    return projectCashflow(snapshot, {
-      rangeDays: 90,
-      scenario,
-      referenceDate: '2026-05-04',
-    })
+    return {
+      conservative: projectCashflow(snapshot, {
+        rangeDays: body.data.rangeDays,
+        scenario: 'conservative',
+        referenceDate: '2026-05-04',
+      }),
+      base: projectCashflow(snapshot, {
+        rangeDays: body.data.rangeDays,
+        scenario: 'base',
+        referenceDate: '2026-05-04',
+      }),
+      optimistic: projectCashflow(snapshot, {
+        rangeDays: body.data.rangeDays,
+        scenario: 'optimistic',
+        referenceDate: '2026-05-04',
+      }),
+    }
   })
 
   app.post('/api/v1/cashflow/recalculate', async (request, reply) => {
@@ -649,7 +677,7 @@ export async function buildApp() {
       return reply.code(400).send(body.error)
     }
 
-    return reply.code(201).send(store.createGoal(userId, body.data))
+    return reply.code(201).send(await store.createGoal(userId, body.data))
   })
 
   app.patch('/api/v1/goals/:id', async (request, reply) => {
@@ -658,7 +686,7 @@ export async function buildApp() {
       return
     }
 
-    const goal = store.updateGoal(
+    const goal = await store.updateGoal(
       userId,
       (request.params as { id: string }).id,
       request.body as Partial<Goal>,
@@ -680,7 +708,11 @@ export async function buildApp() {
       return reply.code(400).send({ message: 'amountMinor must be positive' })
     }
 
-    const goal = store.contributeGoal(userId, (request.params as { id: string }).id, amountMinor)
+    const goal = await store.contributeGoal(
+      userId,
+      (request.params as { id: string }).id,
+      amountMinor,
+    )
     if (!goal) {
       return reply.code(404).send({ message: 'Goal not found' })
     }
@@ -693,7 +725,7 @@ export async function buildApp() {
       return
     }
 
-    const goal = store.updateGoal(userId, (request.params as { id: string }).id, {
+    const goal = await store.updateGoal(userId, (request.params as { id: string }).id, {
       status: 'paused',
     })
     if (!goal) {
@@ -708,13 +740,23 @@ export async function buildApp() {
       return
     }
 
-    const goal = store.updateGoal(userId, (request.params as { id: string }).id, {
+    const goal = await store.updateGoal(userId, (request.params as { id: string }).id, {
       status: 'completed',
     })
     if (!goal) {
       return reply.code(404).send({ message: 'Goal not found' })
     }
     return goal
+  })
+
+  app.delete('/api/v1/goals/:id', async (request, reply) => {
+    const userId = requireUserId(request, reply)
+    if (!userId) {
+      return
+    }
+
+    const deleted = await store.deleteGoal(userId, (request.params as { id: string }).id)
+    return reply.code(deleted ? 204 : 404).send(deleted ? undefined : { message: 'Goal not found' })
   })
 
   app.post('/api/v1/decisions/purchase', async (request, reply) => {
@@ -735,7 +777,7 @@ export async function buildApp() {
       referenceDate: '2026-05-04',
     })
     const decision = evaluatePurchaseDecision(snapshot, body.data, projection)
-    store.appendDecisionHistory(userId, {
+    await store.appendDecisionHistory(userId, {
       type: 'purchase',
       name: body.data.name,
       verdict: decision.verdict,
@@ -762,7 +804,7 @@ export async function buildApp() {
       referenceDate: '2026-05-04',
     })
     const decision = evaluateTravelDecision(snapshot, body.data, projection)
-    store.appendDecisionHistory(userId, {
+    await store.appendDecisionHistory(userId, {
       type: 'travel',
       name: body.data.name,
       verdict: decision.verdict,
@@ -789,7 +831,7 @@ export async function buildApp() {
       referenceDate: '2026-05-04',
     })
     const decision = evaluatePurchaseDecision(snapshot, body.data, projection)
-    store.appendDecisionHistory(userId, {
+    await store.appendDecisionHistory(userId, {
       type: 'purchase',
       name: body.data.name,
       verdict: decision.verdict,
@@ -805,6 +847,24 @@ export async function buildApp() {
     }
 
     return store.listDecisionHistory(userId)
+  })
+
+  app.get('/api/v1/export', async (request, reply) => {
+    const userId = requireUserId(request, reply)
+    if (!userId) {
+      return
+    }
+
+    reply.header(
+      'content-disposition',
+      `attachment; filename="cashpilot-backup-${APP_TODAY}-${userId}.json"`,
+    )
+
+    return {
+      version: '0.1.0',
+      exportedAt: new Date().toISOString(),
+      snapshot: store.getScopedSnapshot(userId),
+    }
   })
 
   app.get('/api/v1/meta/categories', async (request, reply) => {

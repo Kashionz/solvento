@@ -17,3 +17,4 @@ packages/rules/dist
 packages/db/dist
 .playwright-mcp
 test-results
+.cashpilot-data

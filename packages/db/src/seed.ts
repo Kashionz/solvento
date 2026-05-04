@@ -1,5 +1,6 @@
 import { createDemoSnapshot } from '@cashpilot/shared'
 
+import { ensureDatabaseSchema } from './bootstrap'
 import { createNodePgDatabase } from './client'
 import {
   accounts,
@@ -25,6 +26,8 @@ async function seed() {
   const { db, client } = await createNodePgDatabase(process.env.DATABASE_URL)
 
   try {
+    await ensureDatabaseSchema(db)
+
     await db.delete(installmentPayments)
     await db.delete(installmentPlans)
     await db.delete(transactions)

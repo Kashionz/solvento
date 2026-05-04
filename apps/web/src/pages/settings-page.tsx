@@ -33,6 +33,16 @@ export function SettingsPage({
         </Stack>
       </Paper>
 
+      <Paper className="cashpilot-surface" p="lg" radius="xl">
+        <Stack>
+          <Title order={4}>資料</Title>
+          <Text c="dimmed">下載目前帳戶、交易、帳單、分期、目標與決策紀錄的 JSON 備份。</Text>
+          <Button component="a" href="/api/v1/export" variant="light">
+            匯出資料備份
+          </Button>
+        </Stack>
+      </Paper>
+
       <Button color="red" variant="light" onClick={onLogout}>
         登出
       </Button>

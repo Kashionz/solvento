@@ -188,9 +188,10 @@ export function AccountsPage() {
           <TextInput
             label="名稱"
             value={form.name}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, name: event.currentTarget.value }))
-            }
+            onChange={(event) => {
+              const { value } = event.currentTarget
+              setForm((current) => ({ ...current, name: value }))
+            }}
           />
           <Select
             label="類型"
@@ -260,9 +261,10 @@ export function AccountsPage() {
           <Switch
             label="啟用"
             checked={form.isActive}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, isActive: event.currentTarget.checked }))
-            }
+            onChange={(event) => {
+              const { checked } = event.currentTarget
+              setForm((current) => ({ ...current, isActive: checked }))
+            }}
           />
           <Group justify="flex-end">
             <Button variant="subtle" onClick={closeModal}>

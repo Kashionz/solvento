@@ -10,8 +10,35 @@ services:
       POSTGRES_USER: cashpilot
       POSTGRES_PASSWORD: cashpilot
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres18-data:/var/lib/postgresql
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: cashpilot-api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://cashpilot:cashpilot@postgres:5432/cashpilot
+      NODE_ENV: production
+      PORT: 3001
+    ports:
+      - '3001:3001'
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:3001/api/v1
+    container_name: cashpilot-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '3000:3000'
 
 volumes:
-  postgres-data:
-
+  postgres18-data:
